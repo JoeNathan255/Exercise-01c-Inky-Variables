@@ -3,47 +3,170 @@ This is a comment block. It won't be read as an Ink story.
 Comments are very useful for leaving ideas for story and functionalty
 
 This exercise will demonstrate the following in the example video:
- - Variable types: integer, float, boolean
- - Variable assignment
- - Printing variables
- - Variable checking
+ - Basic Choices
+ - Knot structure
+ - Recurring choices
+ - Conditionals in descriptions
+ - Conditionals in choices
  
  In the assignment:
- - Add four more knots
- - Assign at least TWO new variables through player choices
- - Print at least one of the variables to the player in a passage
- - Check the value of a variable and have it do something
+ - Add four more knots (and feel free to change any of the example text, this is YOUR story)
+ - Add at least one more conditional
 */
 
+VAR light = false
+VAR throw_msg = ""
+VAR result = ""
 
+-> entrance
 
--> cave_mouth
+/* These first two functions are just flavor text, for fun */
+== enter_cave ==
+    <> {~The sky is cut off from your view.|⠀} /* I somewhat embarrasingly couldn't figure out Ink's whitespace escape character, so I'm using unicode U+2800 */
+    ->->
 
-== cave_mouth ==
-You are at the enterance to a cave. {not torch_pickup:There is a torch on the floor.} The cave extends to the east and west.
+== exit_cave ==
+    <> {~The sky opens up far above you.|⠀}
+    ->->
 
+== torch_use ==
+    {river_tunnel.knife_get:
+        You manage to light the torch with your pocketknife as a fire striker.
+        ~ light = true
+    - else:
+        You try to light your torch, but don't have a spark.
+    }
+    ->->
 
+== entrance ==
+    {You lay at the bottom of a chasm|The chasm stretches above you}. {not light:The dim lighting reveals sheer walls continuing|Sheer walls continue} to the north and south. 
+    + [Walk north] You walk north.
+        -> north_entrance
+    + [Walk south] You walk south.
+        -> south_entrance
 
-+ [Take the east tunnel] -> east_tunnel
-+ [Take the west tunnel] -> west_tunnel
-* [Pick up the torch] -> torch_pickup
+== south_entrance ==
+    /* I decided to use if/else rather than stitches for larger light checks, just to make tunneling from == torch_use == easier on myself */
+    {light:
+        The ground here is uneven. To the north, it opens into a ravine. To the south, it descends into a jagged passageway.
+        + [Walk north] You walk north.
+            -> entrance
+        + [Walk south] You walk south.
+            -> enter_cave -> south_passage
+    - else:
+        The ground here is uneven, and not much light filters down from above. You don't think you can continue on without more light.
+        + [Walk north] You walk north.
+            -> entrance
+        + {north_entrance.torch_get and not light} [Light torch]
+            -> torch_use -> south_entrance
+    }
 
-== east_tunnel ==
-You are in the east tunnel. It is very dark, you can't see anything.
-* {torch_pickup} [Light Torch] -> east_tunnel_lit
-+ [Go Back] -> cave_mouth
--> END
+== north_entrance ==
+    {not light:Some light filters down from above.} You hear running water to the north, and the ground slopes downward to the south. {not torch_get:A torch lies on the floor.}
+    + [Walk north] You walk north.
+        -> north_river
+    + [Walk south] You walk south.
+        -> entrance
+    * [Pick up torch]
+        -> torch_get
 
-== west_tunnel ==
-You are in the west
-+ [Go Back] -> cave_mouth
--> END
+    = torch_get
+        You pick up the torch. It looks like it'll burn, if you can find a way to light it.
+        -> north_entrance
 
-=== torch_pickup ===
-You now have a torch. May it light the way.
-* [Go Back] -> cave_mouth
--> END
+== north_river ==
+    The ravine here narrows to the bottom of a waterfall. The current channels into a small tunnel to the southwest. {not light:{not east_alcove:You can't see much in the low light, but the eastern wall seems more shadowed than the rest|The eastern wall opens up into darkness}|An alcove opens to the east}.
+        + [Enter the tunnel] You crawl southwest through knee-deep water{light:, careful not to extinguish your torch}.
+            -> enter_cave -> river_tunnel
+        + [Walk south] You walk south.
+            -> north_entrance
+        + {light} [Walk east] You walk east.
+            -> enter_cave -> east_alcove
+        + {not light} [{Investigate the wall|Walk east}] {You take a closer look at the eastern wall|You walk east}.
+            -> east_alcove
 
-== east_tunnel_lit ==
-The light of your torch glints off of the thousands of coins in the room.
--> END
+== river_tunnel ==
+    {Eventually, the tunnel opens up into|You stand in} a small cavern. {not light:You can't see much{not knife_get:, but something glimmers in the darkness| in the darkness}|The walls are worn smooth by the underground river}.
+    + [Leave the cave] You crawl northeast against the current.
+        -> exit_cave -> north_river
+    * [Investigate] You take a closer look.
+        -> knife_get
+    * {north_entrance.torch_get and knife_get and not light} [Light torch] You fail to light your torch in the damp cave.
+        -> river_tunnel
+        
+    = knife_get
+        The item reveals itself to be an old pocketknife nestled amongst the stones. The barely-legible handle tells you it's high-quality steel, though long rusted over. You pocket the knife.
+        -> river_tunnel
+
+== east_alcove ==
+    {not light:{!In fact, the wall falls back into a cave; you have no idea how deep. }Very little light makes it around the corner. You stand in near-pitch darkness|You stand in a small alcove in the cliff face. Directly in front of you lies a skeleton dressed in rags{!| (poor guy)}}.
+    + [Walk west] You walk west{not light:, out of the darkness}.
+        -> exit_cave -> north_river
+    + {north_entrance.torch_get and not light} [Light torch]
+            -> torch_use -> east_alcove
+    * {light} [Investigate]
+        -> rope_get
+
+    = rope_get
+        This has been here for a while. In what remains of a backpack, you find only a length of rope. You pick it up.
+        -> east_alcove
+
+== south_passage ==
+    {rope_throw.throw_count < 3:You find yourself at the bottom of a steep descent to the north. To the southeast lies a{not climb: steep|n} upward incline in the cave{climb:, too steep to climb}.|You stand before a wall to the southeast, your rope hanging down at arm's length. The ravine lies to the north.}
+    + [Walk north] You climb out of the cave.
+        -> exit_cave -> south_entrance
+    * {rope_throw.throw_count < 3} [Climb the wall] You attempt to climb to the southeast.
+        -> climb
+    + {east_alcove.rope_get and rope_throw.throw_count < 3} [Throw the rope] You see by the light of your torch an outcropping near the top of the slope.
+        -> rope_throw
+    + {rope_throw.throw_count > 3} [Climb the rope] You climb up to the southeast.
+        -> escape
+
+    = climb
+        It proves far too steep, and you fall back down to the bottom, nearly losing your torch in the process.
+        -> south_passage
+
+/* I can't figure out any better way to deal with this situation, as the default for alternatives (sequences) increment every time you see them, rather than every time they're selected. Since I wanted to play with the prompt message, I resorted to... this :/  */
+== rope_throw ==
+    {throw_count > 3:
+        -> south_passage
+    }
+    { throw_count:
+        - 0:    You fashion your rope into a makeshift lasso, and prepare to throw the end at the rock.
+        - 1:    You gather your rope and prepare to try again.
+        - 2:    You pick up your rope.
+        - 3:    You pick up your rope. Again.
+        - else: you broke something :(
+    }
+    { throw_count:
+        - 0:    ~ throw_msg = "Make the shot"
+        - 1:    ~ throw_msg = "Throw it again"
+        - 2:    ~ throw_msg = "Throw it again"
+        - 3:    ~ throw_msg = "This is harder than it looks"
+        - else: ~ throw_msg = "you broke something :(" 
+    }
+    { throw_count:
+        - 0:    ~ result = "You throw your rock at the outcropping. It misses by a mile and slides back down to your feet."
+        - 1:    ~ result = "Not one to give up, you throw it again. It almost looks like you've got it, until the rope lands dutifully back at your feet."
+        - 2:    ~ result = "You begin to lose hope as you fail again, the rope piling up on the ground."
+        - 3:    ~ result = "You throw the rope halfheartedly. It lands exactly around the outcropping and holds fast."
+        - else: ~ result = "you broke something :("
+    }
+    + [{throw_msg}] {result}
+        -> throw_count
+    + [Return] You think better of it for the time being.
+        -> south_passage
+    
+    = throw_count
+        ->rope_throw
+
+== escape ==
+    The cave here slopes up gently away from the ravine to the east. You see some light at the end of the tunnel.
+    + [Climb down] You climb down to the northwest.
+        -> south_passage
+    + [Walk east] You follow the passage to the east.
+        -> escape_2
+    
+    = escape_2
+    The cave curves upward further here. The cave is illuminated from above and now in front of you. Walking forward, you hear birdsong as the horizon comes into view.
+        -> END
